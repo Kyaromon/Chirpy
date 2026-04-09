@@ -115,10 +115,32 @@ func (cfg *ChirpConfig) HandlerCreateChirp(w http.ResponseWriter, r *http.Reques
 }
 
 func (cfg *ChirpConfig) HandlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	dbChirps, err := cfg.DB.GetAllChirps(r.Context())
+	authorID := r.URL.Query().Get("author_id")
+	sort := r.URL.Query().Get("sort")
+	
+	var dbChirps []database.Chirp
+	var err error
+	
+	if authorID != "" {
+		parsedAuthorID, err := uuid.Parse(authorID)
+		if err != nil {
+			RespondWithError(w, http.StatusBadRequest, "Invalid author ID")
+			return
+		}
+		dbChirps, err = cfg.DB.GetChirpsByUserID(r.Context(), parsedAuthorID)
+	} else {
+		dbChirps, err = cfg.DB.GetAllChirps(r.Context())
+	}
+	
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve chirps")
 		return
+	}
+
+	if sort == "desc" {
+		for i, j := 0, len(dbChirps)-1; i < j; i, j = i+1, j-1 {
+			dbChirps[i], dbChirps[j] = dbChirps[j], dbChirps[i]
+		}
 	}
 
 	chirps := []Chirp{}
