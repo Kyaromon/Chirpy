@@ -6,7 +6,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"time"
+	"strings"
+	"net/http"
+	"crypto/rand"
+	"encoding/hex"
 )
+
+func MakeRefreshToken() (string, error) {
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	tokenString := hex.EncodeToString(randomBytes)
+	return tokenString, nil
+}
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	now := time.Now().UTC()
@@ -66,4 +81,40 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 		return false, err
 	}
 	return match, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("no authorization header found")
+	}
+
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return "", errors.New("malformed authorization header")
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == "" {
+		return "", errors.New("no token found in authorization header")
+	}
+
+	return token, nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("no authorization header found")
+	}
+
+	if !strings.HasPrefix(authHeader, "ApiKey ") {
+		return "", errors.New("malformed authorization header")
+	}
+
+	apiKey := strings.TrimPrefix(authHeader, "ApiKey ")
+	if apiKey == "" {
+		return "", errors.New("no API key found in authorization header")
+	}
+
+	return apiKey, nil
 }
